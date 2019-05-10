@@ -12,10 +12,6 @@ public class ModsManConfig {
         return mods.stream().filter(modObject -> projectId.equalsIgnoreCase(modObject.projectId + "")).findFirst();
     }
     
-    public static class ConfigObject {
-        @SerializedName("game_version") public String gameVersion;
-    }
-    
     public static class ModObject {
         @SerializedName("project_id") public int projectId;
         @SerializedName("file_id") public int fileId;

@@ -47,16 +47,6 @@ public class Launch {
             return;
         }
         List<Pair<CurseForgeAPI.FileInformation, ModsManConfig.ModObject>> files = new ArrayList<>();
-        //        for(ModsManConfig.ModObject mod : config.mods) {
-        //            CurseForgeAPI.FileInformation file = CurseForgeAPI.getFile(mod.projectId, mod.fileId);
-        //            if (file == null) {
-        //                System.out.println("Failed to fetch " + mod.projectName + "'s data.");
-        //                return;
-        //            }
-        //            System.out.println(mod.projectName + ": Downloading from " + file.downloadUrl + " [" + file.fileNameOnDisk + "]");
-        //            files.add(new Pair<>(file, mod));
-        //        }
-        //        CurseForgeAPI.getFiles(config.mods.stream().map(modObject -> new Pair<>(modObject.projectId, modObject.fileId)).collect(Collectors.toList()));
         int[] a = new int[config.mods.size()];
         int[] b = new int[config.mods.size()];
         for(int i = 0; i < config.mods.size(); i++) {
