@@ -47,23 +47,33 @@ public class Launch {
             return;
         }
         List<Pair<CurseForgeAPI.FileInformation, ModsManConfig.ModObject>> files = new ArrayList<>();
-        int[] a = new int[config.mods.size()];
-        int[] b = new int[config.mods.size()];
-        for(int i = 0; i < config.mods.size(); i++) {
-            a[i] = config.mods.get(i).projectId;
-            b[i] = config.mods.get(i).fileId;
+        for(int j = 0; j < config.mods.size(); j += 50) {
+            int size = Math.min(config.mods.size() - j, 50);
+            int[] a = new int[size];
+            int[] b = new int[size];
+            for(int i = 0; i < size; i++) {
+                a[i] = config.mods.get(i + j).projectId;
+                b[i] = config.mods.get(i + j).fileId;
+            }
+            JsonObject object = CurseForgeAPI.getFiles(a, b);
+            for(Map.Entry<String, JsonElement> entry : object.entrySet()) {
+                Optional<ModsManConfig.ModObject> modObject = config.get(entry.getKey());
+                try {
+                    CurseForgeAPI.FileInformation[] fileInformations = GSON.fromJson(entry.getValue(), CurseForgeAPI.FileInformation[].class);
+                    CurseForgeAPI.FileInformation file = null;
+                    if (fileInformations.length == 1)
+                        file = fileInformations[0];
+                    else
+                        throw new NullPointerException();
+                    System.out.println(modObject.map(mod -> mod.projectName).orElse("NULL") + ": Loaded from " + file.downloadUrl + " [" + file.fileNameOnDisk + "]");
+                    files.add(new Pair<>(file, modObject.get()));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    System.out.println("Failed to load " + modObject.map(mod -> mod.projectName).orElse("NULL"));
+                }
+            }
         }
-        JsonObject object = CurseForgeAPI.getFiles(a, b);
-        for(Map.Entry<String, JsonElement> entry : object.entrySet()) {
-            Optional<ModsManConfig.ModObject> modObject = config.get(entry.getKey());
-            CurseForgeAPI.FileInformation[] fileInformations = GSON.fromJson(entry.getValue(), CurseForgeAPI.FileInformation[].class);
-            CurseForgeAPI.FileInformation file = null;
-            if (fileInformations.length == 1)
-                file = fileInformations[0];
-            System.out.println(modObject.map(mod -> mod.projectName).orElse("NULL") + ": Loaded from " + file.downloadUrl + " [" + file.fileNameOnDisk + "]");
-            files.add(new Pair<>(file, modObject.get()));
-        }
-        System.out.println("\nInitialising Downloads!\n");
+        System.out.println("\nInitialising Downloads! (" + config.mods.size() + " entries with " + files.size() + " loaded)\n");
         AtomicInteger downloaded = new AtomicInteger(0), done = new AtomicInteger(0);
         for(Pair<CurseForgeAPI.FileInformation, ModsManConfig.ModObject> file : files) {
             service.submit(() -> {

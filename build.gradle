@@ -3,9 +3,9 @@ plugins {
     id "com.github.johnrengelman.shadow" version "4.0.3"
 }
 
-archivesBaseName = ".ModsManButJava"
+archivesBaseName = "_ModsManButJava"
 group 'me.shedaniel.modsmanbutjava'
-version '0.1.1'
+version '0.1.2'
 
 sourceCompatibility = targetCompatibility = 1.8
 
