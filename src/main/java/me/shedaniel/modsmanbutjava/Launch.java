@@ -2,20 +2,20 @@ package me.shedaniel.modsmanbutjava;
 
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
+import me.shedaniel.cursemetaapi.CurseMetaAPI;
 
 import javax.net.ssl.HostnameVerifier;
 import javax.net.ssl.HttpsURLConnection;
 import javax.net.ssl.SSLSession;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.channels.Channels;
+import java.nio.channels.ReadableByteChannel;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -46,7 +46,7 @@ public class Launch {
             e.printStackTrace();
             return;
         }
-        List<Pair<CurseForgeAPI.FileInformation, ModsManConfig.ModObject>> files = new ArrayList<>();
+        List<CurseMetaAPI.AddonFile> addonFiles = new ArrayList<>();
         for(int j = 0; j < config.mods.size(); j += 50) {
             int size = Math.min(config.mods.size() - j, 50);
             int[] a = new int[size];
@@ -55,53 +55,41 @@ public class Launch {
                 a[i] = config.mods.get(i + j).projectId;
                 b[i] = config.mods.get(i + j).fileId;
             }
-            JsonObject object = CurseForgeAPI.getFiles(a, b);
-            for(Map.Entry<String, JsonElement> entry : object.entrySet()) {
-                Optional<ModsManConfig.ModObject> modObject = config.get(entry.getKey());
-                try {
-                    CurseForgeAPI.FileInformation[] fileInformations = GSON.fromJson(entry.getValue(), CurseForgeAPI.FileInformation[].class);
-                    CurseForgeAPI.FileInformation file = null;
-                    if (fileInformations.length == 1)
-                        file = fileInformations[0];
-                    else
-                        throw new NullPointerException();
-                    System.out.println(modObject.map(mod -> mod.projectName).orElse("NULL") + ": Loaded from " + file.downloadUrl + " [" + file.fileNameOnDisk + "]");
-                    files.add(new Pair<>(file, modObject.get()));
-                } catch (Exception e) {
-                    e.printStackTrace();
-                    System.out.println("Failed to load " + modObject.map(mod -> mod.projectName).orElse("NULL"));
-                }
-            }
+            addonFiles.addAll(CurseMetaAPI.getAddonFilesMap(a, b).values());
         }
-        System.out.println("\nInitialising Downloads! (" + config.mods.size() + " entries with " + files.size() + " loaded)\n");
+        System.out.println("\nInitialising Downloads! (" + config.mods.size() + " entries with " + addonFiles.size() + " loaded)\n");
         AtomicInteger downloaded = new AtomicInteger(0), done = new AtomicInteger(0);
-        for(Pair<CurseForgeAPI.FileInformation, ModsManConfig.ModObject> file : files) {
+        for(CurseMetaAPI.AddonFile addonFile : addonFiles) {
             service.submit(() -> {
-                CurseForgeAPI.FileInformation fileInformation = file.getLeft();
-                ModsManConfig.ModObject modObject = file.getRight();
-                File end = new File(currentDir, fileInformation.fileNameOnDisk);
+                File end = new File(currentDir, addonFile.fileNameOnDisk);
                 if (end.exists()) {
-                    System.out.println(fileInformation.fileNameOnDisk + " already exists! Skipping!");
+                    System.out.println(addonFile.fileNameOnDisk + " already exists! Skipping!");
                     done.incrementAndGet();
                 } else {
-                    System.out.println("Downloading: " + fileInformation.fileNameOnDisk + "");
+                    System.out.println("Downloading: " + addonFile.fileNameOnDisk + "");
                     try {
-                        CurseForgeAPI.download(new URL(fileInformation.downloadUrl), end);
+                        download(new URL(addonFile.downloadUrl), end);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                    System.out.println("Downloaded: " + fileInformation.fileNameOnDisk + "");
+                    System.out.println("Downloaded: " + addonFile.fileNameOnDisk + "");
                     downloaded.incrementAndGet();
                     done.incrementAndGet();
                 }
             });
         }
         while (true) {
-            if (done.get() >= files.size()) {
-                System.out.println("\nDownloaded " + downloaded.get() + "/" + files.size() + " files!");
+            if (done.get() >= addonFiles.size()) {
+                System.out.println("\nDownloaded " + downloaded.get() + "/" + addonFiles.size() + " files!");
                 System.exit(0);
             }
         }
+    }
+    
+    public static void download(URL url, File file) throws IOException {
+        ReadableByteChannel rbc = Channels.newChannel(url.openStream());
+        FileOutputStream fos = new FileOutputStream(file);
+        fos.getChannel().transferFrom(rbc, 0, Long.MAX_VALUE);
     }
     
 }
