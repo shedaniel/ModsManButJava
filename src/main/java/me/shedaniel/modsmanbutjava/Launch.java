@@ -46,33 +46,51 @@ public class Launch {
             e.printStackTrace();
             return;
         }
+        System.out.println("Downloading cf data (0/" + config.mods.size() + ").");
         List<CurseMetaAPI.AddonFile> addonFiles = new ArrayList<>();
-        for(int j = 0; j < config.mods.size(); j += 50) {
-            int size = Math.min(config.mods.size() - j, 50);
-            int[] a = new int[size];
-            int[] b = new int[size];
-            for(int i = 0; i < size; i++) {
-                a[i] = config.mods.get(i + j).projectId;
-                b[i] = config.mods.get(i + j).fileId;
-            }
-            addonFiles.addAll(CurseMetaAPI.getAddonFilesMap(a, b).values());
+        final int[] doneDownloaded = {0};
+        for (int i = 0; i < config.mods.size(); i++) {
+            int finalI = i;
+            service.submit(() -> {
+                ModsManConfig.ModObject object = config.mods.get(finalI);
+                try {
+                    addonFiles.add(CurseMetaAPI.getAddonFile(object.projectId, object.fileId));
+                } catch (Exception e) {
+                    e.printStackTrace();
+                    System.exit(0);
+                    return;
+                }
+                doneDownloaded[0]++;
+                System.out.println("Downloading cf data (" + (doneDownloaded[0]) + "/" + config.mods.size() + ").");
+            });
         }
+        while (true) {
+            try {
+                Thread.sleep(10);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            if (doneDownloaded[0] >= config.mods.size()) {
+                break;
+            }
+        }
+        System.out.println("Downloaded cf data.");
         System.out.println("\nInitialising Downloads! (" + config.mods.size() + " entries with " + addonFiles.size() + " loaded)\n");
         AtomicInteger downloaded = new AtomicInteger(0), done = new AtomicInteger(0);
-        for(CurseMetaAPI.AddonFile addonFile : addonFiles) {
+        for (CurseMetaAPI.AddonFile addonFile : addonFiles) {
             service.submit(() -> {
-                File end = new File(currentDir, addonFile.fileNameOnDisk);
+                File end = new File(currentDir, addonFile.fileName);
                 if (end.exists()) {
-                    System.out.println(addonFile.fileNameOnDisk + " already exists! Skipping!");
+                    System.out.println(addonFile.fileName + " already exists! Skipping!");
                     done.incrementAndGet();
                 } else {
-                    System.out.println("Downloading: " + addonFile.fileNameOnDisk + "");
+                    System.out.println("Downloading: " + addonFile.fileName + "");
                     try {
                         download(new URL(addonFile.downloadUrl), end);
                     } catch (IOException e) {
                         e.printStackTrace();
                     }
-                    System.out.println("Downloaded: " + addonFile.fileNameOnDisk + "");
+                    System.out.println("Downloaded: " + addonFile.fileName + "");
                     downloaded.incrementAndGet();
                     done.incrementAndGet();
                 }
